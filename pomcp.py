@@ -1,3 +1,5 @@
+import numpy as np
+
 from auxilliary import BuildTree, UCB
 from numpy.random import choice
 
@@ -28,10 +30,11 @@ class POMCP:
         self.tree = BuildTree()
 
     # give state, action, and observation space
-    def initialize(self, S, A, O):
+    def initialize(self, S, A, O, action_mask):
         self.state = S
         self.actions = A
         self.observations = O
+        self.action_mask = action_mask
 
     # searchBest action to take
     # UseUCB = False to pick best value at end of Search()
@@ -106,10 +109,16 @@ class POMCP:
 
         # Pick random action; maybe change this later
         # Need to also add observation in history if this is changed
-        action = choice(self.actions)
+        action_mask = self.action_mask(s)
+        valid_actions = np.where(action_mask == 1)[0]
+
+        action_idx = np.random.choice(valid_actions)
+        action = self.actions[action_idx]
+        # print(f"{valid_actions=} {action=}")
+        # action = choice(self.actions)
 
         # Generate states and observations
-        print(f"{type(s)=}")
+        # print(f"{type(s)=}")
         sample_state, _, r = self.Generator(s, action)
         cum_reward += r + self.gamma * self.Rollout(sample_state, depth + 1)
         return cum_reward
@@ -121,7 +130,11 @@ class POMCP:
 
         # If leaf node
         if self.tree.isLeafNode(h):
-            for action in self.actions:
+            action_mask = self.action_mask(s)
+            valid_actions = [
+                action for i, action in enumerate(self.actions) if action_mask[i]
+            ]
+            for action in valid_actions:
                 self.tree.ExpandTreeFrom(h, action, IsAction=True)
             new_value = self.Rollout(s, depth)
             self.tree.nodes[h][2] += 1

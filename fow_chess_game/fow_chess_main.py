@@ -1,8 +1,11 @@
 import numpy as np
 from fow_chess.board import Board
 from fow_chess.chesscolor import ChessColor
-from fow_chess_generator import FogChessGenerator as Generator
-from numpy.random import choice
+from fow_chess_generator import (
+    FogChessGenerator as Generator,
+    get_action_mask,
+    action_index_to_move,
+)
 from pomcp import POMCP
 
 if __name__ == "__main__":
@@ -16,20 +19,24 @@ if __name__ == "__main__":
         respectively. Other pawn moves or captures from the seventh rank are promoted to a queen.
     """
     board = Board()
-    S = board.to_array()
-    O = board.to_fow_array(ChessColor.WHITE)
+    S = board.to_fen()  # board.to_array()
+    O = board.to_fow_fen(ChessColor.WHITE)  # board.to_fow_array(ChessColor.WHITE)
+    action_mask = get_action_mask(board)
 
     # setup start
-    ab = POMCP(Generator, gamma=0.5)
-    ab.initialize(S, A, O)
+    ab = POMCP(Generator, gamma=0.5, timeout=100)
+    ab.initialize(S, A, O, lambda s: get_action_mask(Board(s)))
 
     # Calculate policy in a loop
     time = 0
-    while time <= 10:
+    while time <= 100:
         time += 1
         action = ab.Search()
-        print(ab.tree.nodes[-1][:4])
-        print(action)
-        observation = choice(O)
+        # print(ab.tree.nodes[-1][:4])
+        print(action_index_to_move(board, action))
+        board.apply_move(action_index_to_move(board, action))
+        observation = board.to_fow_fen(board.side_to_move)  # choice(O)
+        print(observation)
+        print(board)
         ab.tree.prune_after_action(action, observation)
         ab.UpdateBelief(action, observation)
