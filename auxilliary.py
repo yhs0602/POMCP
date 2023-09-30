@@ -1,12 +1,12 @@
 # Auxilliary code
 
-import numpy as np 
+import numpy as np
 from itertools import chain, combinations
 
-# builds a tree
-class BuildTree():
-    def __init__(self, giveParameters = ['isRoot', {}, 0, 0, []] ): #add init dist
 
+# builds a tree
+class BuildTree:
+    def __init__(self, giveParameters=["isRoot", {}, 0, 0, []]):  # add init dist
         # index for nodes
         self.count = -1
         self.nodes = {}
@@ -25,17 +25,17 @@ class BuildTree():
                 self.giveParameters.append(i.copy())
         self.nodes[self.count] = self.giveParameters
 
-    # Expand the tree by one node. 
+    # Expand the tree by one node.
     # If the result of an action give IsAction = True
-    def ExpandTreeFrom(self, parent, index, IsAction = False):
+    def ExpandTreeFrom(self, parent, index, IsAction=False):
         self.count += 1
-        if IsAction: 
+        if IsAction:
             # add node to tree
-            self.nodes[self.count] = [parent, {}, 0, 0, -1] 
+            self.nodes[self.count] = [parent, {}, 0, 0, -1]
             # inform parent node
-            self.nodes[parent][1][index] = self.count 
+            self.nodes[parent][1][index] = self.count
         else:
-            self.nodes[self.count] = [parent, {}, 0, 0, []] 
+            self.nodes[self.count] = [parent, {}, 0, 0, []]
             self.nodes[parent][1][index] = self.count
 
     # Check given nodeindex corresponds to leaf node
@@ -46,7 +46,7 @@ class BuildTree():
             return False
 
     # As in POMCP/ Checks that an observation was already made before moving
-    def getObservationNode(self,h,sample_observation):
+    def getObservationNode(self, h, sample_observation):
         # Check if a given observation node has been visited
         if sample_observation not in list(self.nodes[h][1].keys()):
             # If not create the node
@@ -55,10 +55,10 @@ class BuildTree():
         Next_node = self.nodes[h][1][sample_observation]
         return Next_node
 
-    # Removes a node and 
+    # Removes a node and
     def prune(self, node):
         children = self.nodes[node][1]
-        del self.nodes[node] 
+        del self.nodes[node]
         for _, child in children.items():
             self.prune(child)
 
@@ -66,9 +66,9 @@ class BuildTree():
     def make_new_root(self, new_root):
         self.nodes[-1] = self.nodes[new_root].copy()
         del self.nodes[new_root]
-        self.nodes[-1][0] = 'isRoot'
+        self.nodes[-1][0] = "isRoot"
         # update children
-        for _ , child in self.nodes[-1][1].items():
+        for _, child in self.nodes[-1][1].items():
             self.nodes[child][0] = -1
 
     # Prune tree after action and observation were made
@@ -88,12 +88,14 @@ class BuildTree():
         # set new_root as root (key = -1)
         self.make_new_root(new_root)
 
-#UCB score calculation
-def UCB(N,n,V,c = 1): #N=Total, n= local, V = value, c = parameter
-    return V + c*np.sqrt(np.log(N)/n)
+
+# UCB score calculation
+def UCB(N, n, V, c=1):  # N=Total, n= local, V = value, c = parameter
+    return V + c * np.sqrt(np.log(N) / n)
+
 
 # from itertools recipes
 # creates power set
 def powerset(iterable):
     s = list(iterable)
-    return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
+    return chain.from_iterable(combinations(s, r) for r in range(len(s) + 1))
