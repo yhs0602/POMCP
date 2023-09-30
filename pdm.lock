@@ -10,9 +10,9 @@ content_hash = "sha256:fe6b1271470e5df3d307543250e7aee8a2474c38e8e45ae40657ebae1
 
 [[package]]
 name = "fog-of-war-chess"
-version = "1.0"
+version = "1.5"
 git = "https://github.com/yhs0602/fog-of-war-chess"
-revision = "12ff8dec8ad07093780bcf4d00ced930fe036dba"
+revision = "218d20cd7e71b6b3d5522df2fefba7700a2e44a1"
 summary = "Fog of war chess engine"
 
 [[package]]

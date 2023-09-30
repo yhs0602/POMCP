@@ -1,6 +1,7 @@
 from fow_chess.board import Board
 from fow_chess.chesscolor import ChessColor
 from fow_chess.piece import PieceType
+from fow_chess.position import Position
 
 
 def FogChessGenerator(s, act: int):
@@ -10,34 +11,60 @@ def FogChessGenerator(s, act: int):
     """
     # Extract the necessary details from the move (act)
 
-    x = act // (8 * 73)
-    y = (act // 73) % 8
+    from_file = act // (8 * 73) + 1  # file
+    from_rank = (act // 73) % 8 + 1  # rank
     c = act % (8 * 73) % 73
+    promotion_type = PieceType.QUEEN
     if c < 56:  # normal move
         direction = c // 7  # N, NE, E, SE, S, SW, W, NW
         amount = c % 7
+        if direction == 0:  # N: increase rank, E: increase file
+            to_position = Position(file=from_file, rank=from_rank + amount)
+        elif direction == 1:  # NE
+            to_position = Position(file=from_file + amount, rank=from_rank + amount)
+        elif direction == 2:  # E
+            to_position = Position(file=from_file + amount, rank=from_rank)
+        elif direction == 3:  # SE
+            to_position = Position(file=from_file + amount, rank=from_rank - amount)
+        elif direction == 4:  # S
+            to_position = Position(file=from_file, rank=from_rank - amount)
+        elif direction == 5:  # SW
+            to_position = Position(file=from_file - amount, rank=from_rank - amount)
+        elif direction == 6:  # W
+            to_position = Position(file=from_file - amount, rank=from_rank)
+        elif direction == 7:  # NW
+            to_position = Position(file=from_file - amount, rank=from_rank + amount)
+        else:
+            raise ValueError("Should not happen")
     elif c < 63:  # knight moves
         knight_direction = c % 7
+        dx = [1, 2, 2, 1, -1, -2, -2, -1]
+        dy = [2, 1, -1, -2, -2, -1, 1, 2]
+        to_position = Position(
+            file=from_file + dx[knight_direction], rank=from_rank + dy[knight_direction]
+        )
     else:  # pawn moves, 9 kinds, 63..72
-        kind = c - 63  # left KBR front KBR right KBR
+        kind = c - 63  # Underpromotion: left NBR front NBR right NBR
         direction = kind // 3  # 0 1 2
-        underpromote = kind % 3  # KBR
+        under_pormotion = kind % 3  # KBR
+        promotion_type = [PieceType.KNIGHT, PieceType.BISHOP, PieceType.ROOK][
+            under_pormotion
+        ]
+        if from_rank == 7:
+            to_rank = 8
+        elif from_rank == 2:
+            to_rank = 1
+        else:
+            raise ValueError("From rank is invalid in under promotion")
+        to_position = Position(file=from_file + direction - 1, rank=to_rank)
 
-    from_position = (x, y)
-    to_position = act.to_position
-    promotion_piece = act.promotionPiece
+    from_position = Position(from_file, from_rank)
+
+    if to_position.rank != 1 and to_position.rank != 8:
+        promotion_type = None
 
     # Create a board from the current state
-    board = Board(s)
-
-    # Translate positions to the required format
-    from_position_rank = int(from_position[1])
-    from_position_file = ord(from_position[0]) - ord("a") + 1
-    to_position_rank = int(to_position[1])
-    to_position_file = ord(to_position[0]) - ord("a") + 1
-    promotion_type = None
-    if promotion_piece:
-        promotion_type = PieceType(promotion_piece.lower())
+    board = Board.from_array(s, 0)  # TODO: Manage fullmove number
 
     # Find the move from the legal moves
     legal_moves = board.get_legal_moves(board.side_to_move)
@@ -45,23 +72,25 @@ def FogChessGenerator(s, act: int):
     for move_list in legal_moves.values():
         for legal_move in move_list:
             if (
-                legal_move.piece.rank == from_position_rank
-                and legal_move.piece.file == from_position_file
-                and legal_move.to_position.rank == to_position_rank
-                and legal_move.to_position.file == to_position_file
+                legal_move.piece.rank == from_position.rank
+                and legal_move.piece.file == from_position.file
+                and legal_move.to_position.rank == to_position.rank
+                and legal_move.to_position.file == to_position.file
                 and legal_move.promotion_piece == promotion_type
             ):
                 the_move = legal_move
                 break
 
     if not the_move:
-        raise ValueError("Invalid move")
+        # raise ValueError("Invalid move")
+        reward = -2
+        return s, board.to_fow_array(board.side_to_move), reward
 
     # Apply the move
     winner_color = board.apply_move(the_move)
 
     # Generate observation
-    observation = board.get_visible_board()
+    observation = board.to_fow_array(board.side_to_move)
 
     # Determine the reward
     if winner_color == ChessColor.BLACK:
@@ -71,6 +100,8 @@ def FogChessGenerator(s, act: int):
     else:
         reward = 0  # No win or loss
 
-    next_state = board.fen()  # Convert board state to FEN format for the next state
+    next_state = (
+        board.to_array()
+    )  # Convert board state to FEN format for the next state
 
     return next_state, observation, reward

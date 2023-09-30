@@ -29,7 +29,7 @@ class POMCP:
 
     # give state, action, and observation space
     def initialize(self, S, A, O):
-        self.states = S
+        self.state = S
         self.actions = A
         self.observations = O
 
@@ -80,7 +80,7 @@ class POMCP:
         # Repeat Simulations until timeout
         for _ in range(self.timeout):
             if Bh == []:
-                s = choice(self.states)
+                s = self.state  # choice(self.states)
             else:
                 s = choice(Bh)
             self.Simulate(s, -1, 0)
@@ -109,6 +109,7 @@ class POMCP:
         action = choice(self.actions)
 
         # Generate states and observations
+        print(f"{type(s)=}")
         sample_state, _, r = self.Generator(s, action)
         cum_reward += r + self.gamma * self.Rollout(sample_state, depth + 1)
         return cum_reward
@@ -153,7 +154,7 @@ class POMCP:
     # Samples from posterior after action and observation
     def PosteriorSample(self, Bh, action, observation):
         if Bh == []:
-            s = choice(self.states)
+            s = self.state  # choice(self.state)
         else:
             s = choice(Bh)
         # Sample from transition distribution
