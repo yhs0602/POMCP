@@ -24,19 +24,26 @@ if __name__ == "__main__":
     action_mask = get_action_mask(board)
 
     # setup start
-    ab = POMCP(Generator, gamma=0.5, timeout=100)
+    ab = POMCP(Generator, gamma=0.9, timeout=1000, no_particles=300)
     ab.initialize(S, A, O, lambda s: get_action_mask(Board(s)))
 
     # Calculate policy in a loop
     time = 0
+    history = []
     while time <= 100:
         time += 1
         action = ab.Search()
         # print(ab.tree.nodes[-1][:4])
-        print(action_index_to_move(board, action))
-        board.apply_move(action_index_to_move(board, action))
+        move_str = str(action_index_to_move(board, action))
+        print(move_str)
+        history.append(move_str)
+        winner = board.apply_move(action_index_to_move(board, action))
+        if winner is not None:
+            print("Winner is", winner)
+            break
         observation = board.to_fow_fen(board.side_to_move)  # choice(O)
         print(observation)
         print(board)
         ab.tree.prune_after_action(action, observation)
         ab.UpdateBelief(action, observation)
+    print(history)
