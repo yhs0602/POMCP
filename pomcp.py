@@ -54,17 +54,14 @@ class POMCP:
 
     # searchBest action to take
     # UseUCB = False to pick best value at end of Search()
-    def SearchBest(self, h, state, use_ucb=True):
+    def search_best(self, node_index, state, use_ucb=True):
         max_value = None
         result = None
         resulta = None
-        action_mask = self.action_mask(state)
-        valid_actions = [
-            action for i, action in enumerate(self.actions) if action_mask[i]
-        ]
+        valid_actions = self.get_valid_actions(state)
         if use_ucb:
-            if self.tree.nodes[h].belief_particles != -1:
-                children = self.tree.nodes[h].children
+            if self.tree.nodes[node_index].belief_particles != -1:
+                children = self.tree.nodes[node_index].children
                 # UCB for each child node
                 for action, child in children.items():
                     # if node is unvisited return it
@@ -74,7 +71,7 @@ class POMCP:
                     ):
                         return action, child
                     ucb = UCB(
-                        self.tree.nodes[h].visit_count,
+                        self.tree.nodes[node_index].visit_count,
                         self.tree.nodes[child].visit_count,
                         self.tree.nodes[child].value,
                         self.c,
@@ -90,8 +87,8 @@ class POMCP:
             # return action-child_id values
             return resulta, result
         else:
-            if self.tree.nodes[h].belief_particles != -1:
-                children = self.tree.nodes[h].children
+            if self.tree.nodes[node_index].belief_particles != -1:
+                children = self.tree.nodes[node_index].children
                 # pick optimal value node for termination
                 for action, child in children.items():
                     node_value = self.tree.nodes[child].value
@@ -105,27 +102,27 @@ class POMCP:
             return resulta, result
 
     # Search module
-    def Search(self):
-        Bh = self.tree.nodes[-1].belief_particles.copy()
-        print(f"Search {Bh=}")
+    def search(self):
+        current_belief_particles = self.tree.nodes[-1].belief_particles.copy()
+        print(f"Search {current_belief_particles=}")
         # Repeat Simulations until timeout
         for _ in range(self.timeout):
-            if Bh == []:
+            if not current_belief_particles:
                 state = self.state  # choice(self.states)
             else:
-                state = choice(Bh)
-            self.Simulate(state, -1, 0)
+                state = choice(current_belief_particles)
+            self.simulate(state, -1, 0)
         # Get best action
-        action, _ = self.SearchBest(-1, state, use_ucb=False)
+        action, _ = self.search_best(-1, state, use_ucb=False)
         return action
 
     # Check if a given observation node has been visited
-    def getObservationNode(self, h, sample_observation):
-        if sample_observation not in list(self.tree.nodes[h].children.keys()):
+    def get_observation_node(self, node_index, sample_observation):
+        if sample_observation not in list(self.tree.nodes[node_index].children.keys()):
             # If not create the node
-            self.tree.expand_tree_by_one_node(h, sample_observation)
+            self.tree.expand_tree_by_one_node(node_index, sample_observation)
         # Get the nodes index
-        next_node = self.tree.nodes[h].children[sample_observation]
+        next_node = self.tree.nodes[node_index].children[sample_observation]
         return next_node
 
     def rollout(self, state: FowState, depth):
@@ -149,11 +146,7 @@ class POMCP:
 
         # Pick random action; maybe change this later
         # Need to also add observation in history if this is changed
-        action_mask = self.action_mask(state)
-        valid_actions = np.where(action_mask == 1)[0]
-
-        action_idx = np.random.choice(valid_actions)
-        action = self.actions[action_idx]
+        action = self.random_valid_action(state)
         # print(f"{valid_actions=} {action=}")
         # action = choice(self.actions)
 
@@ -169,31 +162,35 @@ class POMCP:
 
         return cum_reward
 
-    def Simulate(self, state, h, depth):
-        print(f"Simulate\n {state.board} {h=} {depth=}")
+    def random_valid_action(self, state):
+        action_mask = self.action_mask(state)
+        valid_actions = np.where(action_mask == 1)[0]
+        action_idx = np.random.choice(valid_actions)
+        action = self.actions[action_idx]
+        return action
+
+    def simulate(self, state, node_index, depth):
+        print(f"Simulate\n {state.board} {node_index=} {depth=}")
         # Check significance of update
         if (self.gamma**depth < self.e or self.gamma == 0) and depth != 0:
             print("Simulation end")
             return 0
 
         # If leaf node
-        if self.tree.is_leaf_node(h):
-            action_mask = self.action_mask(state)
-            valid_actions = [
-                action for i, action in enumerate(self.actions) if action_mask[i]
-            ]
+        if self.tree.is_leaf_node(node_index):
+            valid_actions = self.get_valid_actions(state)
             for action in valid_actions:
                 print(f"Expanding tree with {action}")
-                self.tree.expand_tree_by_one_node(h, action, is_action=True)
+                self.tree.expand_tree_by_one_node(node_index, action, is_action=True)
             new_value = self.rollout(state, depth)
-            self.tree.nodes[h].visit_count += 1
-            self.tree.nodes[h].value = new_value
+            self.tree.nodes[node_index].visit_count += 1
+            self.tree.nodes[node_index].value = new_value
             print("Is leaf node")
             return new_value
 
         cum_reward = 0
         # Searches best action
-        next_action, next_node = self.SearchBest(h, state)
+        next_action, next_node = self.search_best(node_index, state)
         if next_action is None:
             print("No action!!!")
             return 0
@@ -202,23 +199,23 @@ class POMCP:
             state, next_action
         )
         # Get resulting node index
-        next_node = self.getObservationNode(next_node, sample_observation)
+        next_node = self.get_observation_node(next_node, sample_observation)
         # Estimate node Value
         if terminated:
             print(f"Terminated by {next_action}")
             cum_reward += reward
         else:
             print(f"Deeper simulation after {next_action}")
-            cum_reward += reward + self.gamma * self.Simulate(
+            cum_reward += reward + self.gamma * self.simulate(
                 sample_state, next_node, depth + 1
             )
         # Backtrack
-        self.tree.nodes[h].belief_particles.append(state)
-        if len(self.tree.nodes[h].belief_particles) > self.no_particles:
-            self.tree.nodes[h].belief_particles = self.tree.nodes[h].belief_particles[
-                1:
-            ]
-        self.tree.nodes[h].visit_count += 1
+        self.tree.nodes[node_index].belief_particles.append(state)
+        if len(self.tree.nodes[node_index].belief_particles) > self.no_particles:
+            self.tree.nodes[node_index].belief_particles = self.tree.nodes[
+                node_index
+            ].belief_particles[1:]
+        self.tree.nodes[node_index].visit_count += 1
         self.tree.nodes[next_node].visit_count += 1
         self.tree.nodes[next_node].value += (
             cum_reward - self.tree.nodes[next_node].value
@@ -226,28 +223,35 @@ class POMCP:
         print(f"cum_reward={cum_reward}")
         return cum_reward
 
+    def get_valid_actions(self, state):
+        action_mask = self.action_mask(state)
+        valid_actions = [
+            action for i, action in enumerate(self.actions) if action_mask[i]
+        ]
+        return valid_actions
+
     # FIXFIXFIX
     # Samples from posterior after action and observation
-    def PosteriorSample(self, Bh, action, observation):
-        if Bh == []:
+    def posterior_sample(self, current_belief_particles, action, observation):
+        if not current_belief_particles:
             state = self.state  # choice(self.state)
         else:
-            state = choice(Bh)
+            state = choice(current_belief_particles)
         # Sample from transition distribution
         s_next, o_next, _, terminated = self.Generator(state, action)
         if o_next == observation:
             return s_next
-        result = self.PosteriorSample(Bh, action, observation)
+        result = self.posterior_sample(current_belief_particles, action, observation)
         return result
 
     # Updates belief by sampling posterior
-    def UpdateBelief(self, action, observation):
+    def update_belief(self, action, observation):
         prior = self.tree.nodes[-1].belief_particles.copy()
 
         self.tree.nodes[-1].belief_particles = []
         for _ in range(self.no_particles):
             self.tree.nodes[-1].belief_particles.append(
-                self.PosteriorSample(prior, action, observation)
+                self.posterior_sample(prior, action, observation)
             )
 
     def train_value_network(self):

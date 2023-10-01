@@ -26,21 +26,21 @@ class BuildTree:
         # dictionary where key is node and value is list of corresponding values
         # = [ parent, children, Nc, Value, B() (-1) if action node]
 
-        self.giveParameters = root_parameters  # TODO: Deep copy
-        self.nodes[self.index_for_node] = self.giveParameters
+        self.root_parameters = root_parameters
+        self.nodes[self.index_for_node] = copy.copy(self.root_parameters)
 
     # Expand the tree by one node.
     # If the result of an action give IsAction = True
-    def expand_tree_by_one_node(self, parent, index, is_action=False):
+    def expand_tree_by_one_node(self, parent, action_or_observation, is_action=False):
         self.index_for_node += 1
         if is_action:
             # add node to tree
             self.nodes[self.index_for_node] = MCTSNode(parent, {}, 0, 0, -1)
             # inform parent node
-            self.nodes[parent].children[index] = self.index_for_node
+            self.nodes[parent].children[action_or_observation] = self.index_for_node
         else:
             self.nodes[self.index_for_node] = MCTSNode(parent, {}, 0, 0, [])
-            self.nodes[parent].children[index] = self.index_for_node
+            self.nodes[parent].children[action_or_observation] = self.index_for_node
 
     # Check given nodeindex corresponds to leaf node
     def is_leaf_node(self, n):

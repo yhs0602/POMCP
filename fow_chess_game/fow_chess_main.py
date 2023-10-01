@@ -57,7 +57,7 @@ if __name__ == "__main__":
     history = []
     while time <= 100:
         time += 1
-        action = player1.Search()
+        action = player1.search()
         # print(ab.tree.nodes[-1][:4])
         white_move = action_index_to_move(board, action)
         move_str = str(white_move)
@@ -71,10 +71,10 @@ if __name__ == "__main__":
         print(observation1)
         print(board)
         player1.tree.prune_after_action(action, observation1)
-        player1.UpdateBelief(action, observation1)
+        player1.update_belief(action, observation1)
         player1.train_value_network()
 
-        action = player2.Search()
+        action = player2.search()
         # print(ab.tree.nodes[-1][:4])
         black_move = action_index_to_move(board, action)
         move_str = str(black_move)
@@ -88,6 +88,6 @@ if __name__ == "__main__":
         print(observation2)
         print(board)
         player2.tree.prune_after_action(action, observation2)
-        player2.UpdateBelief(action, observation2)
+        player2.update_belief(action, observation2)
         player2.train_value_network()
     print(history)
