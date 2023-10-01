@@ -19,9 +19,9 @@ ab.initialize(S, A, O)
 time = 0
 while time <= 10:
     time += 1
-    action = ab.Search()
+    action = ab.search()
     print(ab.tree.nodes[-1][:4])
     print(action)
     observation = choice(O)
     ab.tree.prune_after_action(action, observation)
-    ab.UpdateBelief(action, observation)
+    ab.update_belief(action, observation)

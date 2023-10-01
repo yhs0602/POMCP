@@ -1,15 +1,21 @@
+from functools import partial
+
 import numpy as np
 from fow_chess.board import Board
 from fow_chess.chesscolor import ChessColor
+
+from fow_chess_game.fow_state import FowObservation, FowState
+from fow_chess_game.get_device import get_device
+from fow_chess_game.value_network import ValueNetwork
 from fow_chess_generator import (
-    FogChessGenerator as Generator,
+    FogChessGenerator,
     get_action_mask,
     action_index_to_move,
 )
 from pomcp import POMCP
 
 if __name__ == "__main__":
-    A = np.arange(8 * 8 * 73)
+    action_space = np.arange(8 * 8 * 73)
     """
     [In AlphaChessZero, the] action space is a 8x8x73 dimensional array. Each of the 8×8 positions identifies the square
      from which to “pick up” a piece. The first 56 planes encode possible ‘queen moves’ for any piece: a number of
@@ -19,31 +25,85 @@ if __name__ == "__main__":
         respectively. Other pawn moves or captures from the seventh rank are promoted to a queen.
     """
     board = Board()
-    S = board.to_fen()  # board.to_array()
-    O = board.to_fow_fen(ChessColor.WHITE)  # board.to_fow_array(ChessColor.WHITE)
     action_mask = get_action_mask(board)
-
+    device = get_device()
+    value_network = ValueNetwork().to(device)
     # setup start
-    ab = POMCP(Generator, gamma=0.9, timeout=1000, no_particles=300)
-    ab.initialize(S, A, O, lambda s: get_action_mask(Board(s)))
+    gamma = 0.9
+    timeout = 1000
+    num_particles = 300
+    player1 = POMCP(
+        partial(FogChessGenerator, ChessColor.WHITE),
+        gamma=gamma,
+        timeout=timeout,
+        num_particles=num_particles,
+        device=device,
+        value_network=value_network,
+    )
+
+    player2 = POMCP(
+        partial(FogChessGenerator, ChessColor.BLACK),
+        gamma=gamma,
+        timeout=timeout,
+        num_particles=num_particles,
+        device=device,
+        value_network=value_network,
+    )
 
     # Calculate policy in a loop
     time = 0
     history = []
+
+    white_initialized, black_initialized = False, False
     while time <= 100:
         time += 1
-        action = ab.Search()
+        print("White turn ======================")
+        state = FowState(board)
+        observation1 = FowObservation(board.to_fow_fen(ChessColor.WHITE))
+        if not white_initialized:
+            player1.initialize(
+                state, action_space, observation1, lambda s: get_action_mask(s.board)
+            )
+            white_initialized = True
+        else:
+            # player1.tree.prune_after_action(action_white, observation1)
+            player1.update_belief(action_white, observation1)
+            player1.train_value_network()
+        action_white = player1.search()
         # print(ab.tree.nodes[-1][:4])
-        move_str = str(action_index_to_move(board, action))
-        print(move_str)
-        history.append(move_str)
-        winner = board.apply_move(action_index_to_move(board, action))
+        white_move = action_index_to_move(board, action_white)
+        print(f"{action_white=} {white_move=}")
+        history.append(str(white_move))
+        winner = board.apply_move(white_move)
         if winner is not None:
             print("Winner is", winner)
             break
-        observation = board.to_fow_fen(board.side_to_move)  # choice(O)
-        print(observation)
+        observation1 = FowObservation(board.to_fow_fen(ChessColor.WHITE))  # choice(O)
+        print(observation1)
         print(board)
-        ab.tree.prune_after_action(action, observation)
-        ab.UpdateBelief(action, observation)
+
+        print("Black turn ======================")
+        state = FowState(board)
+        observation2 = FowObservation(board.to_fow_fen(ChessColor.BLACK))
+        if not black_initialized:
+            player2.initialize(
+                state, action_space, observation2, lambda s: get_action_mask(s.board)
+            )
+            black_initialized = True
+        else:
+            # player2.tree.prune_after_action(action_black, observation2)
+            player2.update_belief(action_black, observation2)
+            player2.train_value_network()
+        action_black = player2.search()
+        # print(ab.tree.nodes[-1][:4])
+        black_move = action_index_to_move(board, action_black)
+        print(f"{action_black=} {black_move=}")
+        history.append(str(black_move))
+        winner = board.apply_move(black_move)
+        if winner is not None:
+            print("Winner is", winner)
+            break
+        observation2 = FowObservation(board.to_fow_fen(ChessColor.BLACK))  # choice(O)
+        print(observation2)
+        print(board)
     print(history)
