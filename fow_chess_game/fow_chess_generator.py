@@ -6,7 +6,7 @@ from fow_chess.move import Move
 from fow_chess.piece import PieceType
 from fow_chess.position import Position
 
-from fow_chess_game.fow_state import FowState
+from fow_chess_game.fow_state import FowState, FowObservation
 
 
 def move_to_action_index(move: Move) -> int:
@@ -177,15 +177,15 @@ def FogChessGenerator(color: ChessColor, s: FowState, act: int):
     if not the_move:
         # raise ValueError("Invalid move")
         reward = -2
-        return s, board.to_fow_fen(board.side_to_move), reward, True
+        return s, FowObservation(board.to_fow_fen(board.side_to_move)), reward, True
         # return s, board.to_fow_array(board.side_to_move), reward
 
     # Apply the move
     winner_color = board.apply_move(the_move)
 
     # Generate observation
-    observation = board.to_fow_fen(
-        board.side_to_move
+    observation = FowObservation(
+        board.to_fow_fen(color)
     )  # board.to_fow_array(board.side_to_move)
 
     terminated = False

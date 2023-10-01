@@ -1,7 +1,7 @@
 # Auxilliary code
 import copy
 from itertools import chain, combinations
-from typing import Dict
+from typing import Dict, Set
 
 import numpy as np
 
@@ -12,13 +12,13 @@ class MCTSNode:
         self.children = children
         self.visit_count = Nc  # Visit count of the node.
         self.value = value  # Estimated value of the node.
-        self.belief_particles = belief_particles  # A list that contains special data, or -1 if it's an action node.
+        self.belief_particles: Set = belief_particles  # A list that contains special data, or -1 if it's an action node.
 
 
 # builds a tree
 class BuildTree:
     def __init__(
-        self, root_parameters=MCTSNode("isRoot", {}, 0, 0, [])
+        self, root_parameters=MCTSNode("isRoot", {}, 0, 0, set())
     ):  # add init dist
         # index for nodes
         self.index_for_node = -1
@@ -27,7 +27,7 @@ class BuildTree:
         # = [ parent, children, Nc, Value, B() (-1) if action node]
 
         self.root_parameters = root_parameters
-        self.nodes[self.index_for_node] = copy.copy(self.root_parameters)
+        self.nodes[self.index_for_node] = copy.deepcopy(self.root_parameters)
 
     # Expand the tree by one node.
     # If the result of an action give IsAction = True
@@ -39,7 +39,7 @@ class BuildTree:
             # inform parent node
             self.nodes[parent].children[action_or_observation] = self.index_for_node
         else:
-            self.nodes[self.index_for_node] = MCTSNode(parent, {}, 0, 0, [])
+            self.nodes[self.index_for_node] = MCTSNode(parent, {}, 0, 0, set())
             self.nodes[parent].children[action_or_observation] = self.index_for_node
 
     # Check given nodeindex corresponds to leaf node
