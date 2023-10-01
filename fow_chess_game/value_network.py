@@ -21,13 +21,14 @@ class ValueNetwork(nn.Module):
         )
 
         # Fully connected layers
-        conv_out_size = self.get_conv_output((8, 8, 20))
+        conv_out_size = self.get_conv_output((20, 8, 8))
         self.fc1 = nn.Linear(conv_out_size, 512)  # 8x8 is the board size
         self.fc2 = nn.Linear(512, 1)  # Output is a scalar value for the position
         self.flatten = nn.Flatten()
 
     def forward(self, state):
         # Apply convolutional layers with ReLU activation
+        state = state.permute(0, 3, 1, 2)
         x = self.conv(state)
         x = self.flatten(x)
 

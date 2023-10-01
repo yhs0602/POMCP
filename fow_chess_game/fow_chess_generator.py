@@ -5,7 +5,8 @@ from fow_chess.chesscolor import ChessColor
 from fow_chess.move import Move
 from fow_chess.piece import PieceType
 from fow_chess.position import Position
-from fow_chess.board import Board
+
+from fow_chess_game.fow_state import FowState
 
 
 def move_to_action_index(move: Move) -> int:
@@ -163,19 +164,20 @@ def action_index_to_move(board, action_idx: int) -> Optional[Move]:
     return the_move
 
 
-def FogChessGenerator(s, act: int):
+def FogChessGenerator(color: ChessColor, s: FowState, act: int):
     """
     s: Current board state (FEN format)
     act: Player's action (a move)
     """
     # Extract the necessary details from the move (act)
-    board = Board(s)
+    # board = Board(s)
+    board = s.board
     the_move = action_index_to_move(board, act)
 
     if not the_move:
         # raise ValueError("Invalid move")
         reward = -2
-        return s, board.to_fow_fen(board.side_to_move), reward
+        return s, board.to_fow_fen(board.side_to_move), reward, True
         # return s, board.to_fow_array(board.side_to_move), reward
 
     # Apply the move
@@ -186,17 +188,23 @@ def FogChessGenerator(s, act: int):
         board.side_to_move
     )  # board.to_fow_array(board.side_to_move)
 
+    terminated = False
     # Determine the reward
-    if winner_color == ChessColor.BLACK:
-        reward = -1  # Assume you're playing as white for this example
-    elif winner_color == ChessColor.WHITE:
+    if winner_color is None:
+        reward = 0
+    elif winner_color == color:
         reward = 1
+        terminated = True
+    elif winner_color == ChessColor.DRAW:
+        reward = -0.1
+        terminated = True
     else:
-        reward = 0  # No win or loss
+        reward = -1
+        terminated = True
 
     # next_state = (
     #     board.to_array()
     # )  # Convert board state to FEN format for the next state
-    next_state = board.to_fen()  # Convert board state to FEN format for the next state
+    next_state = FowState(board)  # Convert board state to FEN format for the next state
 
-    return next_state, observation, reward
+    return next_state, observation, reward, terminated
