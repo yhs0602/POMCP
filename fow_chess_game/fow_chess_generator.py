@@ -69,7 +69,7 @@ def move_to_action_index(move: Move) -> int:
     return base_idx + offset
 
 
-def get_action_mask(board):
+def get_action_mask(board) -> np.ndarray[np.int64]:
     """Generate a binary mask indicating which actions are legal."""
     legal_moves = board.get_legal_moves(board.side_to_move)
     mask = np.zeros(8 * 8 * 73, dtype=int)  # 73 possible actions for each square

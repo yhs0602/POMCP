@@ -25,7 +25,6 @@ if __name__ == "__main__":
         respectively. Other pawn moves or captures from the seventh rank are promoted to a queen.
     """
     board = Board()
-    action_mask = get_action_mask(board)
     device = get_device()
     value_network = ValueNetwork().to(device)
     # setup start
